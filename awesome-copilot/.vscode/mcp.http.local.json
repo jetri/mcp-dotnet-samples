@@ -2,7 +2,7 @@
   "servers": {
     "awesome-copilot": {
       "type": "http",
-      "url": "http://0.0.0.0:5250/mcp"
+      "url": "http://localhost:5250/mcp"
     }
   }
 }

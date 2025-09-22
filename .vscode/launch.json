@@ -1,11 +1,21 @@
 {
   "version": "0.2.0",
   "configurations": [
+
     {
-      "name": "Attach to .NET Functions",
+      "name": ".NET Launch (AwesomeCopilot)",
       "type": "coreclr",
-      "request": "attach",
-      "processId": "${command:azureFunctions.pickProcess}"
+      "request": "launch",
+      "preLaunchTask": "build",
+      "program": "${workspaceFolder}/awesome-copilot/src/McpSamples.AwesomeCopilot.HybridApp/bin/Debug/net9.0/McpSamples.AwesomeCopilot.HybridApp.dll",
+      "args": ["--", "--http"],
+      "env": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      },
+      "launchSettingsProfile": "http",
+      "cwd": "${workspaceFolder}/awesome-copilot/src/McpSamples.AwesomeCopilot.HybridApp",
+      "stopAtEntry": false,
+      "console": "internalConsole"
     }
   ]
 }

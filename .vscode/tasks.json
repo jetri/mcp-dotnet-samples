@@ -68,6 +68,24 @@
       "problemMatcher": "$msCompile"
     },
     {
+      "label": "build",
+      "command": "dotnet",
+      "args": [
+        "build",
+        "/property:GenerateFullPaths=true",
+        "/consoleloggerparameters:NoSummary"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}/awesome-copilot/src/McpSamples.AwesomeCopilot.HybridApp"
+      },
+      "type": "process",
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+      "problemMatcher": "$msCompile"
+    },
+    {
       "type": "func",
       "dependsOn": "build (functions)",
       "options": {
