@@ -2,3 +2,7 @@ src/awesome-copilot/
 
 !.vscode/mcp.json
 .azure
+
+# Environment variables
+.env
+.env.local

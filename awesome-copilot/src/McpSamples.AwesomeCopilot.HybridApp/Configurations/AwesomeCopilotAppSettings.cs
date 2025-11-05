@@ -1,4 +1,4 @@
-using McpSamples.Shared.Configurations;
+using McpSamples.AwesomeCopilot.HybridApp.Shared.Configurations;
 
 using Microsoft.OpenApi.Models;
 
@@ -16,4 +16,9 @@ public class AwesomeCopilotAppSettings : AppSettings
         Version = "1.0.0",
         Description = "A simple MCP server for searching and loading custom instructions from the awesome-copilot repository."
     };
+
+    /// <summary>
+    /// Gets or sets the GitHub repository settings.
+    /// </summary>
+    public GitHubSettings GitHub { get; set; } = new();
 }

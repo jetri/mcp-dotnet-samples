@@ -14,13 +14,16 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\..\shared\McpSamples.Shared\McpSamples.Shared.csproj" />
-  </ItemGroup>
-
-  <ItemGroup>
     <None Update="metadata.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="DotNetEnv" Version="3.1.1" />
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="9.*" />
+    <PackageReference Include="ModelContextProtocol.AspNetCore" Version="0.*-*" />
+    <PackageReference Include="Octokit" Version="14.0.0" />
   </ItemGroup>
 
 </Project>

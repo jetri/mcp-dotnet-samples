@@ -1,16 +1,22 @@
 using System.Text.Json;
 
+using McpSamples.AwesomeCopilot.HybridApp.Configurations;
 using McpSamples.AwesomeCopilot.HybridApp.Models;
+
+using Octokit;
 
 namespace McpSamples.AwesomeCopilot.HybridApp.Services;
 
 /// <summary>
 /// This represents the service entity for searching and loading custom instructions from the awesome-copilot repository.
 /// </summary>
-public class MetadataService(HttpClient http, JsonSerializerOptions options, ILogger<MetadataService> logger) : IMetadataService
+public class MetadataService(
+    IGitHubClient githubClient,
+    AwesomeCopilotAppSettings settings,
+    JsonSerializerOptions options,
+    ILogger<MetadataService> logger) : IMetadataService
 {
     private const string MetadataFileName = "metadata.json";
-    private const string AwesomeCopilotFileUrl = "https://raw.githubusercontent.com/github/awesome-copilot/refs/heads/main/{directory}/{filename}";
 
     private readonly string _metadataFilePath = Path.Combine(AppContext.BaseDirectory, MetadataFileName);
     private Metadata? _cachedMetadata;
@@ -61,21 +67,102 @@ public class MetadataService(HttpClient http, JsonSerializerOptions options, ILo
             throw new ArgumentException("Filename cannot be null or empty", nameof(filename));
         }
 
-        var url = AwesomeCopilotFileUrl.Replace("{directory}", directory).Replace("{filename}", filename);
+        var githubSettings = settings.GitHub;
+        var filePath = $"{directory}/{filename}";
+
         try
         {
-            var response = await http.GetAsync(url, cancellationToken).ConfigureAwait(false);
-            response.EnsureSuccessStatusCode();
+            logger.LogInformation(
+                "Fetching file from GitHub: {owner}/{repo}/{branch}/{path}",
+                githubSettings.RepositoryOwner,
+                githubSettings.RepositoryName,
+                githubSettings.Branch,
+                filePath);
 
-            var content = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+            // Get the file content from GitHub using Octokit
+            // GetAllContentsByRef returns content metadata including encoded content
+            var contents = await githubClient.Repository.Content.GetAllContentsByRef(
+                githubSettings.RepositoryOwner,
+                githubSettings.RepositoryName,
+                filePath,
+                githubSettings.Branch).ConfigureAwait(false);
 
-            logger.LogInformation("Loaded content from {url}", url);
+            if (contents == null || contents.Count == 0)
+            {
+                throw new NotFoundException($"File not found: {filePath}", System.Net.HttpStatusCode.NotFound);
+            }
+
+            // Get the first (and should be only) file content
+            var fileContent = contents[0];
+            string content;
+
+            // Decode the content based on encoding
+            if (fileContent.Encoding == "base64")
+            {
+                var decodedBytes = Convert.FromBase64String(fileContent.Content);
+                content = System.Text.Encoding.UTF8.GetString(decodedBytes);
+            }
+            else
+            {
+                // If not base64, assume it's plain text
+                content = fileContent.Content;
+            }
+
+            logger.LogInformation(
+                "Successfully loaded file from GitHub: {owner}/{repo}/{branch}/{path}",
+                githubSettings.RepositoryOwner,
+                githubSettings.RepositoryName,
+                githubSettings.Branch,
+                filePath);
 
             return content;
         }
-        catch (HttpRequestException ex)
+        catch (NotFoundException ex)
         {
-            throw new InvalidOperationException($"Failed to load file '{filename}' from directory '{directory}': {ex.Message}", ex);
+            logger.LogError(
+                ex,
+                "File not found in GitHub repository: {owner}/{repo}/{branch}/{path}",
+                githubSettings.RepositoryOwner,
+                githubSettings.RepositoryName,
+                githubSettings.Branch,
+                filePath);
+
+            throw new InvalidOperationException(
+                $"File '{filename}' not found in directory '{directory}' at repository " +
+                $"{githubSettings.RepositoryOwner}/{githubSettings.RepositoryName} (branch: {githubSettings.Branch})",
+                ex);
+        }
+        catch (RateLimitExceededException ex)
+        {
+            logger.LogError(
+                ex,
+                "GitHub API rate limit exceeded. Reset at: {resetTime}",
+                ex.Reset);
+
+            throw new InvalidOperationException(
+                $"GitHub API rate limit exceeded. Please try again after {ex.Reset.ToLocalTime():yyyy-MM-dd HH:mm:ss}",
+                ex);
+        }
+        catch (AuthorizationException ex)
+        {
+            logger.LogError(
+                ex,
+                "GitHub authentication failed. Please check your token.");
+
+            throw new InvalidOperationException(
+                "GitHub authentication failed. Please verify your GitHub token has the required permissions.",
+                ex);
+        }
+        catch (ApiException ex)
+        {
+            logger.LogError(
+                ex,
+                "GitHub API error while loading file: {message}",
+                ex.Message);
+
+            throw new InvalidOperationException(
+                $"Failed to load file '{filename}' from GitHub: {ex.Message}",
+                ex);
         }
     }
 
