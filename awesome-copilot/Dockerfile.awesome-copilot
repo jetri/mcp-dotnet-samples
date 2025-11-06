@@ -2,7 +2,7 @@
 
 FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/sdk:9.0-alpine AS build
 
-COPY ./awesome-copilot/src/McpSamples.AwesomeCopilot.HybridApp /source/awesome-copilot/src/McpSamples.AwesomeCopilot.HybridApp
+COPY ./src/McpSamples.AwesomeCopilot.HybridApp /source/awesome-copilot/src/McpSamples.AwesomeCopilot.HybridApp
 
 WORKDIR /source/awesome-copilot/src/McpSamples.AwesomeCopilot.HybridApp
 
