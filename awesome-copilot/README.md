@@ -14,6 +14,7 @@ This is an MCP server that retrieves GitHub Copilot customizations from the [awe
 - [Azure CLI](https://learn.microsoft.com/cli/azure/install-azure-cli)
 - [Azure Developer CLI](https://learn.microsoft.com/azure/developer/azure-developer-cli/install-azd)
 - [Docker Desktop](https://docs.docker.com/get-started/get-docker/)
+- [GitHub Personal Access Token](https://github.com/settings/tokens) - Required for accessing the awesome-copilot repository via GitHub API
 
 ## What's Included
 
@@ -27,6 +28,7 @@ Awesome Copilot MCP server includes:
 
 ## Getting Started
 
+- [Configuration](#configuration)
 - [Getting repository root](#getting-repository-root)
 - [Running MCP server](#running-mcp-server)
   - [On a local machine](#on-a-local-machine)
@@ -34,6 +36,56 @@ Awesome Copilot MCP server includes:
   - [On Azure](#on-azure)
 - [Connect MCP server to an MCP host/client](#connect-mcp-server-to-an-mcp-hostclient)
   - [VS Code + Agent Mode + Local MCP server](#vs-code--agent-mode--local-mcp-server)
+
+### Configuration
+
+This MCP server uses the GitHub API to fetch custom instructions from the [awesome-copilot](https://github.com/github/awesome-copilot) repository. You need to configure a GitHub Personal Access Token to authenticate with the GitHub API.
+
+#### GitHub Personal Access Token Setup
+
+1. Go to [GitHub Settings > Tokens](https://github.com/settings/tokens)
+2. Click "Generate new token" (classic)
+3. For **public repositories**: No special scopes are needed
+4. For **private repositories**: Select the `repo` scope
+5. Copy the generated token
+
+#### Development Environment Setup
+
+For local development, create a `.env` file in the `src/McpSamples.AwesomeCopilot.HybridApp` directory:
+
+```bash
+cd $REPOSITORY_ROOT/awesome-copilot/src/McpSamples.AwesomeCopilot.HybridApp
+cp .env.example .env
+```
+
+Edit the `.env` file and add your GitHub token:
+
+```bash
+GITHUB__TOKEN=your_github_token_here
+```
+
+> **Security Note**: The `.env` file is automatically ignored by git. Never commit your token to source control.
+
+#### Production Environment Setup
+
+For Docker containers and Azure deployments, pass the token as an environment variable (see respective sections below).
+
+#### Optional Configuration
+
+You can override the default repository settings using environment variables:
+
+- `GITHUB__REPOSITORYOWNER`: Repository owner (default: `github`)
+- `GITHUB__REPOSITORYNAME`: Repository name (default: `awesome-copilot`)
+- `GITHUB__BRANCH`: Branch name (default: `main`)
+
+For example, to use a different repository in your `.env` file:
+
+```bash
+GITHUB__TOKEN=your_github_token_here
+GITHUB__REPOSITORYOWNER=myorg
+GITHUB__REPOSITORYNAME=my-repo
+GITHUB__BRANCH=develop
+```
 
 ### Getting repository root
 
@@ -53,6 +105,8 @@ Awesome Copilot MCP server includes:
 
 #### On a local machine
 
+1. Make sure you have configured the `.env` file with your GitHub token (see [Configuration](#configuration) section above).
+
 1. Run the MCP server app.
 
     ```bash
@@ -60,7 +114,9 @@ Awesome Copilot MCP server includes:
     dotnet run --project ./src/McpSamples.AwesomeCopilot.HybridApp
     ```
 
-   > Make sure take note the absolute directory path of the `McpSamples.AwesomeCopilot.HybridApp` project.
+   > **Note**:
+   > - The application will fail at startup if `GITHUB__TOKEN` is not set in your `.env` file
+   > - Make sure to take note of the absolute directory path of the `McpSamples.AwesomeCopilot.HybridApp` project
 
    **Parameters**:
 
@@ -83,30 +139,53 @@ Awesome Copilot MCP server includes:
 
 1. Run the MCP server app in a container.
 
+    > **Important**: You must pass the GitHub token as an environment variable.
+
     ```bash
-    docker run -i --rm -p 8080:8080 awesome-copilot:latest
+    docker run -i --rm -p 8080:8080 \
+      -e GITHUB__TOKEN=your_github_token_here \
+      awesome-copilot:latest
     ```
 
    Alternatively, use the container image from the container registry.
 
     ```bash
-    docker run -i --rm -p 8080:8080 ghcr.io/microsoft/mcp-dotnet-samples/awesome-copilot:latest
+    docker run -i --rm -p 8080:8080 \
+      -e GITHUB__TOKEN=your_github_token_here \
+      ghcr.io/microsoft/mcp-dotnet-samples/awesome-copilot:latest
     ```
 
    **Parameters**:
 
    - `--http`: The switch that indicates to run this MCP server as a streamable HTTP type. When this switch is added, the MCP server URL is `http://localhost:8080`.
+   - `-e GITHUB__TOKEN`: Environment variable for GitHub authentication (required)
+   - `-e GITHUB__REPOSITORYOWNER`: Override repository owner (optional, default: `github`)
+   - `-e GITHUB__REPOSITORYNAME`: Override repository name (optional, default: `awesome-copilot`)
+   - `-e GITHUB__BRANCH`: Override branch name (optional, default: `main`)
 
-   With this parameter, you can run the MCP server like:
+   With these parameters, you can run the MCP server like:
 
    ```bash
-   # use local container image
-   docker run -i --rm -p 8080:8080 awesome-copilot:latest --http
+   # use local container image with HTTP mode
+   docker run -i --rm -p 8080:8080 \
+     -e GITHUB__TOKEN=your_github_token_here \
+     awesome-copilot:latest --http
    ```
 
    ```bash
-   # use container image from the container registry
-   docker run -i --rm -p 8080:8080 ghcr.io/microsoft/mcp-dotnet-samples/awesome-copilot:latest --http
+   # use container image from the container registry with HTTP mode
+   docker run -i --rm -p 8080:8080 \
+     -e GITHUB__TOKEN=your_github_token_here \
+     ghcr.io/microsoft/mcp-dotnet-samples/awesome-copilot:latest --http
+   ```
+
+   ```bash
+   # use custom repository
+   docker run -i --rm -p 8080:8080 \
+     -e GITHUB__TOKEN=your_github_token_here \
+     -e GITHUB__REPOSITORYOWNER=myorg \
+     -e GITHUB__REPOSITORYNAME=my-repo \
+     ghcr.io/microsoft/mcp-dotnet-samples/awesome-copilot:latest --http
    ```
 
 #### On Azure
@@ -124,6 +203,20 @@ Awesome Copilot MCP server includes:
     azd auth login
     ```
 
+1. Set the GitHub token as an environment variable for deployment.
+
+    ```bash
+    azd env set GITHUB__TOKEN your_github_token_here
+    ```
+
+   Optionally, configure custom repository settings:
+
+    ```bash
+    azd env set GITHUB__REPOSITORYOWNER myorg
+    azd env set GITHUB__REPOSITORYNAME my-repo
+    azd env set GITHUB__BRANCH develop
+    ```
+
 1. Deploy the MCP server app to Azure.
 
     ```bash
@@ -139,6 +232,8 @@ Awesome Copilot MCP server includes:
      ```bash
      azd env get-value AZURE_RESOURCE_MCP_AWESOME_COPILOT_FQDN
      ```
+
+   > **Note**: The GitHub token and other environment variables are securely stored and injected into the Azure Container Apps instance. You can update them later using the Azure Portal or Azure CLI.
 
 ### Connect MCP server to an MCP host/client
 
