@@ -95,17 +95,25 @@ public class MetadataService(
             // Get the first (and should be only) file content
             var fileContent = contents[0];
             string content;
-
-            // Decode the content based on encoding
+            logger.LogInformation("File encoding: {encoding}", fileContent.Encoding);
+            // Try to decode base64, fallback to plain text if it fails
             if (fileContent.Encoding == "base64")
             {
-                var decodedBytes = Convert.FromBase64String(fileContent.Content);
-                content = System.Text.Encoding.UTF8.GetString(decodedBytes);
+                try
+                {
+                    var decodedBytes = Convert.FromBase64String(fileContent.Content);
+                    content = System.Text.Encoding.UTF8.GetString(decodedBytes);
+                }
+                catch (FormatException ex)
+                {
+                    logger.LogWarning(ex, "Base64 decoding failed. Falling back to plain text. Content snippet: {snippet}", fileContent.Content?.Substring(0, Math.Min(50, fileContent.Content.Length)));
+                    content = fileContent.Content ?? string.Empty;
+                }
             }
             else
             {
                 // If not base64, assume it's plain text
-                content = fileContent.Content;
+                content = fileContent.Content ?? string.Empty;
             }
 
             logger.LogInformation(
@@ -115,7 +123,7 @@ public class MetadataService(
                 githubSettings.Branch,
                 filePath);
 
-            return content;
+            return content ?? string.Empty;
         }
         catch (NotFoundException ex)
         {
